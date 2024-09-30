@@ -1,0 +1,6 @@
+name: MinigamePlaceholder
+version: '${version}'
+main: net.minevn.minigameplaceholder.MinigamePlaceholder
+load: STARTUP
+depend:
+  - PlaceholderAPI

@@ -1,0 +1,5 @@
+# Configuration file for MinigamePlaceholder plugin
+serverPrefixes:
+  - minigame
+  - minestrike
+  # Add more prefixes as needed

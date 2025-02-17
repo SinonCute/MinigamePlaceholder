@@ -21,10 +21,10 @@ public class MinigameExpansion extends PlaceholderExpansion {
     }
 
     @Override
-    public String onRequest(OfflinePlayer player, String params) {
-        if (params.equals("all")) {
-            return String.valueOf(MinigamePlaceholder.getInstance().getTotalPlayerCount());
+    public String onRequest(OfflinePlayer player, @NotNull String params) {
+        if (params.isEmpty()) {
+            return null;
         }
-        return String.valueOf(MinigamePlaceholder.getInstance().getPlayerCount(params));
+        return String.valueOf(MinigamePlaceholder.getInstance().getPlayerCountByPrefix(params));
     }
 }

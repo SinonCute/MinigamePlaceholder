@@ -4,6 +4,8 @@ import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -11,6 +13,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
+import java.io.File;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class MinigamePlaceholder extends JavaPlugin implements PluginMessageListener, Listener {
@@ -20,18 +25,20 @@ public final class MinigamePlaceholder extends JavaPlugin implements PluginMessa
     private boolean isRequesting;
     private int totalNeedUpdate;
     private long lastRequestTime;
+    private List<String> serverPrefixes;
 
     @Override
     public void onEnable() {
         instance = this;
-        serverPlayerCount = new java.util.HashMap<>();
+        serverPlayerCount = new HashMap<>();
         lastRequestTime = 0;
         this.getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
         this.getServer().getMessenger().registerIncomingPluginChannel(this, "BungeeCord", this);
         this.getServer().getPluginManager().registerEvents(this, this);
-        if(Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new MinigameExpansion().register();
         }
+        loadConfig();
         Bukkit.getScheduler().runTaskTimer(this, this::sendRequestServerList, 0, 20 * 60); // 1 minute
     }
 
@@ -61,8 +68,6 @@ public final class MinigamePlaceholder extends JavaPlugin implements PluginMessa
                 String rawPlayerList = in.readUTF().trim();
                 if (rawPlayerList.isEmpty()) {
                     serverPlayerCount.put(server, 0);
-                    totalNeedUpdate--;
-                    return;
                 } else {
                     String[] playerList = rawPlayerList.split(", ");
                     serverPlayerCount.put(server, playerList.length);
@@ -73,9 +78,12 @@ public final class MinigamePlaceholder extends JavaPlugin implements PluginMessa
             case "GetServers": {
                 String[] serverList = in.readUTF().split(", ");
                 for (String server : serverList) {
-                    if (server.startsWith("minigame")) {
-                        requestPlayerCount(server);
-                        totalNeedUpdate++;
+                    for (String prefix : serverPrefixes) {
+                        if (server.startsWith(prefix)) {
+                            requestPlayerCount(server);
+                            totalNeedUpdate++;
+                            break;
+                        }
                     }
                 }
                 break;
@@ -108,6 +116,16 @@ public final class MinigamePlaceholder extends JavaPlugin implements PluginMessa
         Bukkit.getOnlinePlayers().stream().findFirst().ifPresent(player -> player.sendPluginMessage(this, "BungeeCord", out.toByteArray()));
     }
 
+    private void loadConfig() {
+        File configFile = new File(getDataFolder(), "config.yml");
+        if (!configFile.exists()) {
+            configFile.getParentFile().mkdirs();
+            saveResource("config.yml", false);
+        }
+        FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+        serverPrefixes = config.getStringList("serverPrefixes");
+    }
+
     public static MinigamePlaceholder getInstance() {
         return instance;
     }
@@ -118,5 +136,12 @@ public final class MinigamePlaceholder extends JavaPlugin implements PluginMessa
 
     public int getTotalPlayerCount() {
         return serverPlayerCount.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    public int getPlayerCountByPrefix(String prefix) {
+        return serverPlayerCount.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(prefix))
+                .mapToInt(Map.Entry::getValue)
+                .sum();
     }
 }
